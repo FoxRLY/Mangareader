@@ -1,35 +1,37 @@
 services:
-  # content-delivery:
-  #   networks:
-  #     - mangareader
-  #
-  # content-management:
-  #   networks:
-  #     - mangareader
-  #
-  # page-management:
-  #   networks:
-  #     - mangareader
-  #
-  # catalogue-rating:
-  #   networks:
-  #     - mangareader
-
+  content-delivery:
+    build: ./content-delivery/.
+    container_name: content-delivery
+    # ports:
+    #  - 8084:8080
+    networks:
+      - mangareader
+  page-management:
+    build: ./page-management/.
+    container_name: page-management
+    # ports:
+    #   - 8086:80
+    networks:
+      - mangareader
+  catalogue-rating:
+    build: ./catalogue-rating/.
+    container_name: catalogue-rating
+    networks:
+      - mangareader
   nginx-cache:
     image: nginx
     container_name: nginx-cache
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - 80:80
+    # ports:
+    #   - 80:80
     networks:
       - mangareader
-
   auth:
     image: quay.io/keycloak/keycloak:24.0.2
     command: start-dev
-    ports:
-      - 8080:8080
+    # ports:
+    #   - 8080:8080
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: postgres
@@ -43,26 +45,24 @@ services:
       - postgres
     networks:
       - mangareader
-
   postgres:
     image: mirror.gcr.io/postgres
     environment:
       POSTGRES_DB: mangareader
       POSTGRES_USER: mangareader
       POSTGRES_PASSWORD: mangareader
-    ports:
-      - 5432:5432
+    # ports:
+    #   - 5432:5432
     networks:
       - mangareader
-
   s3:
     container_name: s3
     image: mirror.gcr.io/minio/minio
     volumes:
       - ./s3data:/data
-    ports:
-      - 9000:9000
-      - 9001:9001
+    # ports:
+    #   - 9000:9000
+    #   - 9001:9001
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
@@ -74,7 +74,6 @@ services:
       retries: 3
     networks:
       - mangareader
-
 networks:
   mangareader:
     driver: bridge

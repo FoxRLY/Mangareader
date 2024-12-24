@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-delivery
+  labels:
+    service-name: content-delivery
+spec:
+  selector:
+    service-name: content-delivery
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-delivery
+  labels:
+    service-name: content-delivery
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      service-name: content-delivery
+  template:
+    metadata:
+      labels:
+        service-name: content-delivery
+    spec:
+      containers:
+        - name: content-delivery
+          imagePullPolicy: Never
+          image: content-delivery
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8080
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: content-delivery
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /content-delivery(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: content-delivery
+                port:
+                  number: 80

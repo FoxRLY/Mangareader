@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    service-name: keycloak
+spec:
+  selector:
+    service-name: keycloak
+  ports:
+      - name: http
+        port: 8080
+        targetPort: 8080
+
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels:
+    service-name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service-name: keycloak
+  template:
+    metadata:
+      labels:
+        service-name: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:24.0.2
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL_HOST
+              value: postgres
+            - name: KC_DB_URL_DATABASE
+              value: postgres
+            - name: KC_DB_PASSWORD
+              value: mangareader
+            - name: KC_DB_USERNAME
+              value: mangareader
+            - name: KC_DB_SCHEMA
+              value: public
+            - name: KEYCLOAK_ADMIN
+              value: admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: password
+          args:
+            - start-dev
+          ports:
+            - containerPort: 8080
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /keycloak(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    service-name: postgres
+spec:
+  selector:
+    service-name: postgres
+  ports:
+      - name: http
+        port: 5432
+        targetPort: 5432
+
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    service-name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service-name: postgres
+  template:
+    metadata:
+      labels:
+        service-name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: mirror.gcr.io/postgres
+          env:
+            - name: POSTGRES_DB
+              value: mangareader
+            - name: POSTGRES_USER
+              value: mangareader
+            - name: POSTGRES_PASSWORD
+              value: mangareader
+          ports:
+            - containerPort: 5432
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3
+  labels:
+    service-name: s3
+spec:
+  selector:
+    service-name: s3
+  ports:
+      - name: one
+        port: 9000
+        targetPort: 9000
+      - name: two
+        port: 9001
+        targetPort: 9001
+
+--- 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3
+  labels:
+    service-name: s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service-name: s3
+  template:
+    metadata:
+      labels:
+        service-name: s3
+    spec:
+      containers:
+        - name: s3
+          image: mirror.gcr.io/minio/minio
+          command:
+              - /bin/bash
+              - -c
+          args: 
+              - minio server /data --console-address :9090
+          env:
+            - name: MINIO_ACCESS_KEY
+              value: minio
+            - name: MINIO_SECRET_KEY
+              value: minio123
+          livenessProbe:
+            failureThreshold: 30
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 1
+            httpGet:
+              path: "minio/health/live"
+              port: 9000
+              scheme: HTTP
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
